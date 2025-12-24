@@ -19,25 +19,25 @@ var parser *book.Parser
 var semanticEngine *embeddings.SemanticEngine
 
 func main() {
-	// Obtener la ruta del libro desde variable de entorno o usar default
+	// Get book path from environment variable or use default
 	bookPath := os.Getenv("BOOK_PATH")
 	if bookPath == "" {
-		// Default path relativo al proyecto gentleman-programming-book
+		// Default path relative to gentleman-programming-book project
 		homeDir, _ := os.UserHomeDir()
 		bookPath = homeDir + "/work/gentleman-programming-book/src/data/book"
 	}
 
-	// Verificar que el path existe
+	// Verify path exists
 	if _, err := os.Stat(bookPath); os.IsNotExist(err) {
 		log.Fatalf("Book path does not exist: %s", bookPath)
 	}
 
 	parser = book.NewParser(bookPath)
 
-	// Inicializar semantic engine si hay API key de OpenAI o Ollama
+	// Initialize semantic engine if OpenAI API key or Ollama is available
 	initSemanticEngine()
 
-	// Crear servidor MCP
+	// Create MCP server
 	s := server.NewMCPServer(
 		"Gentleman Programming Book",
 		"1.0.0",
@@ -47,7 +47,7 @@ func main() {
 	)
 
 	// ============================================
-	// NIVEL 1: TOOLS BÁSICOS
+	// LEVEL 1: BASIC TOOLS
 	// ============================================
 
 	// Tool: list_chapters
@@ -110,10 +110,10 @@ func main() {
 	)
 
 	// ============================================
-	// NIVEL 3: SEMANTIC SEARCH
+	// LEVEL 3: SEMANTIC SEARCH
 	// ============================================
 
-	// Tool: semantic_search (solo disponible si hay embeddings)
+	// Tool: semantic_search (only available if embeddings are configured)
 	s.AddTool(
 		mcp.NewTool("semantic_search",
 			mcp.WithDescription("Search the book using semantic similarity (AI-powered). More accurate than keyword search. Requires OPENAI_API_KEY or Ollama running locally."),
@@ -153,7 +153,7 @@ func main() {
 	)
 
 	// ============================================
-	// NIVEL 2: RESOURCES DINÁMICOS
+	// LEVEL 2: DYNAMIC RESOURCES
 	// ============================================
 
 	// Resource: Book index
@@ -178,7 +178,7 @@ func main() {
 	)
 
 	// ============================================
-	// NIVEL 2: PROMPTS PREDEFINIDOS
+	// LEVEL 2: PREDEFINED PROMPTS
 	// ============================================
 
 	// Prompt: explain_concept
@@ -223,7 +223,7 @@ func main() {
 		handleSummarizeChapterPrompt,
 	)
 
-	// Iniciar servidor via stdio
+	// Start server via stdio
 	log.Println("Starting Gentleman Book MCP Server...")
 	if err := server.ServeStdio(s); err != nil {
 		log.Fatalf("Server error: %v", err)
@@ -231,7 +231,7 @@ func main() {
 }
 
 // ============================================
-// TOOL HANDLERS - NIVEL 1
+// TOOL HANDLERS - LEVEL 1
 // ============================================
 
 func handleListChapters(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
@@ -242,7 +242,7 @@ func handleListChapters(ctx context.Context, req mcp.CallToolRequest) (*mcp.Call
 		return mcp.NewToolResultError(fmt.Sprintf("Error listing chapters: %v", err)), nil
 	}
 
-	// Crear resumen de capítulos (sin contenido completo)
+	// Create chapter summary (without full content)
 	type chapterSummary struct {
 		ID       string         `json:"id"`
 		Order    int            `json:"order"`
@@ -274,7 +274,7 @@ func handleReadChapter(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallT
 	}
 
 	if sectionID != "" {
-		// Leer solo la sección
+		// Read only the section
 		content, err := parser.GetSection(chapterID, sectionID, locale)
 		if err != nil {
 			return mcp.NewToolResultError(fmt.Sprintf("Error reading section: %v", err)), nil
@@ -282,13 +282,13 @@ func handleReadChapter(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallT
 		return mcp.NewToolResultText(content), nil
 	}
 
-	// Leer capítulo completo
+	// Read full chapter
 	chapter, err := parser.GetChapter(chapterID, locale)
 	if err != nil {
 		return mcp.NewToolResultError(fmt.Sprintf("Error reading chapter: %v", err)), nil
 	}
 
-	// Formatear respuesta
+	// Format response
 	response := fmt.Sprintf("# %s\n\n%s", chapter.Name, chapter.Content)
 	return mcp.NewToolResultText(response), nil
 }
@@ -327,13 +327,13 @@ func handleGetBookIndex(ctx context.Context, req mcp.CallToolRequest) (*mcp.Call
 }
 
 // ============================================
-// RESOURCE HANDLERS - NIVEL 2
+// RESOURCE HANDLERS - LEVEL 2
 // ============================================
 
 func handleBookIndexResource(ctx context.Context, req mcp.ReadResourceRequest) ([]mcp.ResourceContents, error) {
 	uri := req.Params.URI
 
-	// Extraer locale del URI
+	// Extract locale from URI
 	locale := "es"
 	if strings.HasSuffix(uri, "/en") {
 		locale = "en"
@@ -356,7 +356,7 @@ func handleBookIndexResource(ctx context.Context, req mcp.ReadResourceRequest) (
 }
 
 // ============================================
-// PROMPT HANDLERS - NIVEL 2
+// PROMPT HANDLERS - LEVEL 2
 // ============================================
 
 func handleExplainConceptPrompt(ctx context.Context, req mcp.GetPromptRequest) (*mcp.GetPromptResult, error) {
@@ -372,14 +372,14 @@ func handleExplainConceptPrompt(ctx context.Context, req mcp.GetPromptRequest) (
 		}
 	}
 
-	// Buscar contenido relevante en el libro
+	// Search for relevant content in the book
 	results, _ := parser.Search(concept, locale)
 
 	var contextSnippets string
 	if len(results) > 0 {
 		var snippets []string
 		for i, r := range results {
-			if i >= 5 { // Máximo 5 snippets
+			if i >= 5 { // Maximum 5 snippets
 				break
 			}
 			snippets = append(snippets, fmt.Sprintf("From '%s' (%s):\n%s", r.ChapterName, r.Section, r.Snippet))
@@ -419,7 +419,7 @@ func handleComparePatternsPrompt(ctx context.Context, req mcp.GetPromptRequest) 
 		}
 	}
 
-	// Buscar contenido de ambos patrones
+	// Search content for both patterns
 	resultsA, _ := parser.Search(patternA, "es")
 	resultsB, _ := parser.Search(patternB, "es")
 
@@ -508,7 +508,7 @@ func handleSummarizeChapterPrompt(ctx context.Context, req mcp.GetPromptRequest)
 		}, nil
 	}
 
-	// Limitar contenido si es muy largo
+	// Limit content if too long
 	content := chapter.Content
 	if len(content) > 10000 {
 		content = content[:10000] + "\n\n... [content truncated]"
@@ -537,11 +537,11 @@ Include:
 }
 
 // ============================================
-// SEMANTIC SEARCH HANDLERS - NIVEL 3
+// SEMANTIC SEARCH HANDLERS - LEVEL 3
 // ============================================
 
 func initSemanticEngine() {
-	// Intentar OpenAI primero, luego Ollama
+	// Try OpenAI first, then Ollama
 	var err error
 
 	if os.Getenv("OPENAI_API_KEY") != "" {
@@ -553,7 +553,7 @@ func initSemanticEngine() {
 		log.Printf("OpenAI not available: %v", err)
 	}
 
-	// Intentar Ollama
+	// Try Ollama
 	semanticEngine, err = embeddings.NewSemanticEngine(embeddings.ProviderOllama)
 	if err == nil && semanticEngine.IsAvailable() {
 		log.Println("Semantic search enabled with Ollama")
@@ -618,7 +618,7 @@ func handleBuildSemanticIndex(ctx context.Context, req mcp.CallToolRequest) (*mc
 		}
 
 		for _, chapter := range chapters {
-			// Dividir el contenido en chunks (por secciones o párrafos)
+			// Split content into chunks (by sections or paragraphs)
 			chunks := splitIntoChunks(chapter.Content, chapter.ID, chapter.Name, locale, &chunkID)
 			allChunks = append(allChunks, chunks...)
 		}
@@ -656,16 +656,16 @@ func handleSemanticStatus(ctx context.Context, req mcp.CallToolRequest) (*mcp.Ca
 	return mcp.NewToolResultText(string(result)), nil
 }
 
-// splitIntoChunks divide el contenido en chunks manejables
+// splitIntoChunks splits content into manageable chunks
 func splitIntoChunks(content string, chapterID, chapterName, locale string, idCounter *int) []embeddings.Chunk {
 	var chunks []embeddings.Chunk
 
-	// Dividir por secciones (headers ##)
+	// Split by sections (## headers)
 	headerPattern := regexp.MustCompile(`(?m)^##\s+(.+)$`)
 	sections := headerPattern.Split(content, -1)
 	headers := headerPattern.FindAllStringSubmatch(content, -1)
 
-	// Agregar contenido antes del primer header
+	// Add content before the first header
 	if len(sections) > 0 && strings.TrimSpace(sections[0]) != "" {
 		*idCounter++
 		chunks = append(chunks, embeddings.Chunk{
@@ -678,7 +678,7 @@ func splitIntoChunks(content string, chapterID, chapterName, locale string, idCo
 		})
 	}
 
-	// Procesar cada sección
+	// Process each section
 	for i, header := range headers {
 		sectionContent := ""
 		if i+1 < len(sections) {
@@ -689,7 +689,7 @@ func splitIntoChunks(content string, chapterID, chapterName, locale string, idCo
 			continue
 		}
 
-		// Si el contenido es muy largo, dividirlo en chunks más pequeños
+		// If content is too long, split into smaller chunks
 		sectionName := header[1]
 		contentChunks := splitLongContent(sectionContent, 1000)
 

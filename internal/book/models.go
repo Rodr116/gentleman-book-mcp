@@ -1,6 +1,6 @@
 package book
 
-// Chapter representa un capítulo del libro
+// Chapter represents a book chapter
 type Chapter struct {
 	ID        string    `json:"id"`
 	Order     int       `json:"order"`
@@ -11,13 +11,13 @@ type Chapter struct {
 	FilePath  string    `json:"filePath"`
 }
 
-// Section representa una sección dentro de un capítulo
+// Section represents a section within a chapter
 type Section struct {
 	Name  string `json:"name"`
 	TagID string `json:"tagId"`
 }
 
-// SearchResult representa un resultado de búsqueda
+// SearchResult represents a search result
 type SearchResult struct {
 	ChapterID   string  `json:"chapterId"`
 	ChapterName string  `json:"chapterName"`
@@ -28,7 +28,7 @@ type SearchResult struct {
 	Locale      string  `json:"locale"`
 }
 
-// BookIndex representa el índice completo del libro
+// BookIndex represents the complete book index
 type BookIndex struct {
 	Locale        string    `json:"locale"`
 	TotalChapters int       `json:"totalChapters"`

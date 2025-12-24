@@ -12,17 +12,17 @@ import (
 	"strings"
 )
 
-// Parser maneja el parsing de archivos MDX del libro
+// Parser handles parsing of MDX book files
 type Parser struct {
 	bookPath string
 }
 
-// NewParser crea un nuevo parser con la ruta al libro
+// NewParser creates a new parser with the book path
 func NewParser(bookPath string) *Parser {
 	return &Parser{bookPath: bookPath}
 }
 
-// frontmatter representa el YAML frontmatter del MDX
+// frontmatter represents the YAML frontmatter from MDX
 type frontmatter struct {
 	ID        string    `json:"id"`
 	Order     int       `json:"order"`
@@ -30,7 +30,7 @@ type frontmatter struct {
 	TitleList []Section `json:"titleList"`
 }
 
-// ParseChapter parsea un archivo MDX y retorna un Chapter
+// ParseChapter parses an MDX file and returns a Chapter
 func (p *Parser) ParseChapter(filePath string, locale string) (*Chapter, error) {
 	content, err := os.ReadFile(filePath)
 	if err != nil {
@@ -39,7 +39,7 @@ func (p *Parser) ParseChapter(filePath string, locale string) (*Chapter, error) 
 
 	contentStr := string(content)
 
-	// Separar frontmatter del contenido
+	// Separate frontmatter from content
 	fm, body, err := p.parseFrontmatter(contentStr)
 	if err != nil {
 		return nil, fmt.Errorf("error parsing frontmatter in %s: %w", filePath, err)
@@ -56,14 +56,14 @@ func (p *Parser) ParseChapter(filePath string, locale string) (*Chapter, error) 
 	}, nil
 }
 
-// parseFrontmatter extrae el frontmatter YAML del contenido MDX
+// parseFrontmatter extracts the YAML frontmatter from MDX content
 func (p *Parser) parseFrontmatter(content string) (*frontmatter, string, error) {
-	// El frontmatter está entre --- y ---
+	// Frontmatter is between --- and ---
 	if !strings.HasPrefix(content, "---") {
 		return nil, content, fmt.Errorf("no frontmatter found")
 	}
 
-	// Encontrar el segundo ---
+	// Find the second ---
 	endIndex := strings.Index(content[3:], "---")
 	if endIndex == -1 {
 		return nil, content, fmt.Errorf("frontmatter not closed")
@@ -72,31 +72,31 @@ func (p *Parser) parseFrontmatter(content string) (*frontmatter, string, error) 
 	fmContent := content[3 : endIndex+3]
 	body := strings.TrimSpace(content[endIndex+6:])
 
-	// Parsear el frontmatter manualmente (es YAML-like pero con JSON arrays)
+	// Parse frontmatter manually (it's YAML-like but with JSON arrays)
 	fm := &frontmatter{}
 
-	// Extraer id
+	// Extract id
 	idMatch := regexp.MustCompile(`id:\s*['"]([^'"]+)['"]`).FindStringSubmatch(fmContent)
 	if len(idMatch) > 1 {
 		fm.ID = idMatch[1]
 	}
 
-	// Extraer order
+	// Extract order
 	orderMatch := regexp.MustCompile(`order:\s*(\d+)`).FindStringSubmatch(fmContent)
 	if len(orderMatch) > 1 {
 		fm.Order, _ = strconv.Atoi(orderMatch[1])
 	}
 
-	// Extraer name
+	// Extract name
 	nameMatch := regexp.MustCompile(`name:\s*['"]([^'"]+)['"]`).FindStringSubmatch(fmContent)
 	if len(nameMatch) > 1 {
 		fm.Name = nameMatch[1]
 	}
 
-	// Extraer titleList (es un array JSON-like)
+	// Extract titleList (it's a JSON-like array)
 	titleListStart := strings.Index(fmContent, "titleList:")
 	if titleListStart != -1 {
-		// Encontrar el array completo
+		// Find the complete array
 		arrayStart := strings.Index(fmContent[titleListStart:], "[")
 		if arrayStart != -1 {
 			bracketCount := 0
@@ -117,7 +117,7 @@ func (p *Parser) parseFrontmatter(content string) (*frontmatter, string, error) 
 
 			if arrayEnd != -1 {
 				arrayContent := fmContent[startPos:arrayEnd]
-				// Limpiar el contenido para que sea JSON válido
+				// Clean content to make it valid JSON
 				arrayContent = p.cleanArrayToJSON(arrayContent)
 
 				var sections []Section
@@ -131,24 +131,24 @@ func (p *Parser) parseFrontmatter(content string) (*frontmatter, string, error) 
 	return fm, body, nil
 }
 
-// cleanArrayToJSON limpia el array YAML-like para que sea JSON válido
+// cleanArrayToJSON cleans YAML-like array to valid JSON
 func (p *Parser) cleanArrayToJSON(content string) string {
-	// Reemplazar comillas simples por dobles
+	// Replace single quotes with double quotes
 	content = strings.ReplaceAll(content, "'", "\"")
 
-	// Asegurar que las keys estén entre comillas
+	// Ensure keys are quoted
 	content = regexp.MustCompile(`(\s)name:`).ReplaceAllString(content, `$1"name":`)
 	content = regexp.MustCompile(`(\s)tagId:`).ReplaceAllString(content, `$1"tagId":`)
 	content = regexp.MustCompile(`{\s*name:`).ReplaceAllString(content, `{"name":`)
 	content = regexp.MustCompile(`{\s*tagId:`).ReplaceAllString(content, `{"tagId":`)
 
-	// Limpiar espacios y saltos de línea extra
+	// Clean extra spaces and newlines
 	content = regexp.MustCompile(`\s+`).ReplaceAllString(content, " ")
 
 	return content
 }
 
-// ListChapters lista todos los capítulos de un locale
+// ListChapters lists all chapters for a locale
 func (p *Parser) ListChapters(locale string) ([]Chapter, error) {
 	localePath := filepath.Join(p.bookPath, locale)
 
@@ -166,14 +166,14 @@ func (p *Parser) ListChapters(locale string) ([]Chapter, error) {
 		filePath := filepath.Join(localePath, entry.Name())
 		chapter, err := p.ParseChapter(filePath, locale)
 		if err != nil {
-			// Log error pero continuar con otros archivos
+			// Log error but continue with other files
 			fmt.Fprintf(os.Stderr, "Warning: could not parse %s: %v\n", filePath, err)
 			continue
 		}
 		chapters = append(chapters, *chapter)
 	}
 
-	// Ordenar por order
+	// Sort by order
 	sort.Slice(chapters, func(i, j int) bool {
 		return chapters[i].Order < chapters[j].Order
 	})
@@ -181,7 +181,7 @@ func (p *Parser) ListChapters(locale string) ([]Chapter, error) {
 	return chapters, nil
 }
 
-// GetChapter obtiene un capítulo específico por ID
+// GetChapter gets a specific chapter by ID
 func (p *Parser) GetChapter(chapterID string, locale string) (*Chapter, error) {
 	chapters, err := p.ListChapters(locale)
 	if err != nil {
@@ -197,17 +197,17 @@ func (p *Parser) GetChapter(chapterID string, locale string) (*Chapter, error) {
 	return nil, fmt.Errorf("chapter not found: %s", chapterID)
 }
 
-// GetSection obtiene una sección específica de un capítulo
+// GetSection gets a specific section from a chapter
 func (p *Parser) GetSection(chapterID string, sectionTagID string, locale string) (string, error) {
 	chapter, err := p.GetChapter(chapterID, locale)
 	if err != nil {
 		return "", err
 	}
 
-	// Buscar la sección en el contenido
+	// Search for the section in content
 	lines := strings.Split(chapter.Content, "\n")
 
-	// Encontrar el header que corresponde al tagId
+	// Find the header that matches the tagId
 	inSection := false
 	var sectionContent strings.Builder
 	headerPattern := regexp.MustCompile(`^#{1,6}\s+(.+)$`)
@@ -223,7 +223,7 @@ func (p *Parser) GetSection(chapterID string, sectionTagID string, locale string
 				sectionContent.WriteString("\n")
 				continue
 			} else if inSection {
-				// Llegamos a otra sección, terminar
+				// Reached another section, stop
 				break
 			}
 		}
@@ -241,27 +241,27 @@ func (p *Parser) GetSection(chapterID string, sectionTagID string, locale string
 	return strings.TrimSpace(sectionContent.String()), nil
 }
 
-// generateTagID genera un tagId a partir de un título
+// generateTagID generates a tagId from a title
 func (p *Parser) generateTagID(title string) string {
-	// Convertir a minúsculas
+	// Convert to lowercase
 	tagID := strings.ToLower(title)
 
-	// Reemplazar espacios por guiones
+	// Replace spaces with hyphens
 	tagID = strings.ReplaceAll(tagID, " ", "-")
 
-	// Remover caracteres especiales excepto guiones y letras con acentos
+	// Remove special characters except hyphens and accented letters
 	tagID = regexp.MustCompile(`[^\p{L}\p{N}-]`).ReplaceAllString(tagID, "")
 
-	// Remover guiones múltiples
+	// Remove multiple hyphens
 	tagID = regexp.MustCompile(`-+`).ReplaceAllString(tagID, "-")
 
-	// Remover guiones al inicio y final
+	// Remove leading and trailing hyphens
 	tagID = strings.Trim(tagID, "-")
 
 	return tagID
 }
 
-// Search busca contenido en el libro
+// Search searches content in the book
 func (p *Parser) Search(query string, locale string) ([]SearchResult, error) {
 	chapters, err := p.ListChapters(locale)
 	if err != nil {
@@ -283,12 +283,12 @@ func (p *Parser) Search(query string, locale string) ([]SearchResult, error) {
 			line := scanner.Text()
 			lineLower := strings.ToLower(line)
 
-			// Actualizar sección actual
+			// Update current section
 			if matches := headerPattern.FindStringSubmatch(line); len(matches) > 1 {
 				currentSection = matches[1]
 			}
 
-			// Buscar coincidencias
+			// Search for matches
 			matchCount := 0
 			for _, word := range queryWords {
 				if strings.Contains(lineLower, word) {
@@ -299,7 +299,7 @@ func (p *Parser) Search(query string, locale string) ([]SearchResult, error) {
 			if matchCount > 0 {
 				relevance := float64(matchCount) / float64(len(queryWords))
 
-				// Crear snippet con contexto
+				// Create snippet with context
 				snippet := line
 				if len(snippet) > 200 {
 					snippet = snippet[:200] + "..."
@@ -318,12 +318,12 @@ func (p *Parser) Search(query string, locale string) ([]SearchResult, error) {
 		}
 	}
 
-	// Ordenar por relevancia
+	// Sort by relevance
 	sort.Slice(results, func(i, j int) bool {
 		return results[i].Relevance > results[j].Relevance
 	})
 
-	// Limitar resultados
+	// Limit results
 	if len(results) > 20 {
 		results = results[:20]
 	}
@@ -331,16 +331,16 @@ func (p *Parser) Search(query string, locale string) ([]SearchResult, error) {
 	return results, nil
 }
 
-// GetBookIndex obtiene el índice completo del libro
+// GetBookIndex gets the complete book index
 func (p *Parser) GetBookIndex(locale string) (*BookIndex, error) {
 	chapters, err := p.ListChapters(locale)
 	if err != nil {
 		return nil, err
 	}
 
-	// Limpiar el contenido para el índice (solo metadata)
+	// Clear content for index (metadata only)
 	for i := range chapters {
-		chapters[i].Content = "" // No incluir contenido completo en el índice
+		chapters[i].Content = "" // Don't include full content in index
 	}
 
 	return &BookIndex{
@@ -350,7 +350,7 @@ func (p *Parser) GetBookIndex(locale string) (*BookIndex, error) {
 	}, nil
 }
 
-// GetAvailableLocales retorna los locales disponibles
+// GetAvailableLocales returns available locales
 func (p *Parser) GetAvailableLocales() ([]string, error) {
 	entries, err := os.ReadDir(p.bookPath)
 	if err != nil {

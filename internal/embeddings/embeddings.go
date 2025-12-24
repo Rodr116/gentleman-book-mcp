@@ -13,7 +13,7 @@ import (
 	"time"
 )
 
-// Provider define el tipo de proveedor de embeddings
+// Provider defines the embeddings provider type
 type Provider string
 
 const (
@@ -21,13 +21,13 @@ const (
 	ProviderOllama Provider = "ollama"
 )
 
-// EmbeddingClient es la interfaz para generar embeddings
+// EmbeddingClient is the interface for generating embeddings
 type EmbeddingClient interface {
 	Embed(ctx context.Context, text string) ([]float64, error)
 	EmbedBatch(ctx context.Context, texts []string) ([][]float64, error)
 }
 
-// Chunk representa un fragmento de texto con su embedding
+// Chunk represents a text fragment with its embedding
 type Chunk struct {
 	ID          string    `json:"id"`
 	ChapterID   string    `json:"chapterId"`
@@ -38,7 +38,7 @@ type Chunk struct {
 	Locale      string    `json:"locale"`
 }
 
-// SemanticResult representa un resultado de búsqueda semántica
+// SemanticResult represents a semantic search result
 type SemanticResult struct {
 	ChapterID   string  `json:"chapterId"`
 	ChapterName string  `json:"chapterName"`
@@ -48,34 +48,34 @@ type SemanticResult struct {
 	Locale      string  `json:"locale"`
 }
 
-// VectorStore almacena y busca chunks por similitud
+// VectorStore stores and searches chunks by similarity
 type VectorStore struct {
 	chunks []Chunk
 	mu     sync.RWMutex
 }
 
-// NewVectorStore crea un nuevo vector store
+// NewVectorStore creates a new vector store
 func NewVectorStore() *VectorStore {
 	return &VectorStore{
 		chunks: make([]Chunk, 0),
 	}
 }
 
-// Add agrega un chunk al store
+// Add adds a chunk to the store
 func (v *VectorStore) Add(chunk Chunk) {
 	v.mu.Lock()
 	defer v.mu.Unlock()
 	v.chunks = append(v.chunks, chunk)
 }
 
-// AddBatch agrega múltiples chunks
+// AddBatch adds multiple chunks
 func (v *VectorStore) AddBatch(chunks []Chunk) {
 	v.mu.Lock()
 	defer v.mu.Unlock()
 	v.chunks = append(v.chunks, chunks...)
 }
 
-// Search busca los chunks más similares a un embedding
+// Search finds the most similar chunks to an embedding
 func (v *VectorStore) Search(queryEmbedding []float64, locale string, topK int) []SemanticResult {
 	v.mu.RLock()
 	defer v.mu.RUnlock()
@@ -94,7 +94,7 @@ func (v *VectorStore) Search(queryEmbedding []float64, locale string, topK int) 
 		results = append(results, scored{chunk: chunk, score: score})
 	}
 
-	// Ordenar por score descendente
+	// Sort by score descending
 	for i := 0; i < len(results); i++ {
 		for j := i + 1; j < len(results); j++ {
 			if results[j].score > results[i].score {
@@ -103,7 +103,7 @@ func (v *VectorStore) Search(queryEmbedding []float64, locale string, topK int) 
 		}
 	}
 
-	// Tomar top K
+	// Take top K
 	if len(results) > topK {
 		results = results[:topK]
 	}
@@ -123,21 +123,21 @@ func (v *VectorStore) Search(queryEmbedding []float64, locale string, topK int) 
 	return semanticResults
 }
 
-// Count retorna el número de chunks
+// Count returns the number of chunks
 func (v *VectorStore) Count() int {
 	v.mu.RLock()
 	defer v.mu.RUnlock()
 	return len(v.chunks)
 }
 
-// Clear limpia el store
+// Clear clears the store
 func (v *VectorStore) Clear() {
 	v.mu.Lock()
 	defer v.mu.Unlock()
 	v.chunks = make([]Chunk, 0)
 }
 
-// cosineSimilarity calcula la similitud de coseno entre dos vectores
+// cosineSimilarity calculates cosine similarity between two vectors
 func cosineSimilarity(a, b []float64) float64 {
 	if len(a) != len(b) {
 		return 0
@@ -182,7 +182,7 @@ type openAIResponse struct {
 	} `json:"error,omitempty"`
 }
 
-// NewOpenAIClient crea un cliente de OpenAI
+// NewOpenAIClient creates an OpenAI client
 func NewOpenAIClient(apiKey string) *OpenAIClient {
 	if apiKey == "" {
 		apiKey = os.Getenv("OPENAI_API_KEY")
@@ -250,7 +250,7 @@ func (c *OpenAIClient) EmbedBatch(ctx context.Context, texts []string) ([][]floa
 		return nil, fmt.Errorf("OpenAI error: %s", openAIResp.Error.Message)
 	}
 
-	// Ordenar por index
+	// Sort by index
 	embeddings := make([][]float64, len(texts))
 	for _, d := range openAIResp.Data {
 		embeddings[d.Index] = d.Embedding
@@ -279,7 +279,7 @@ type ollamaResponse struct {
 	Error     string    `json:"error,omitempty"`
 }
 
-// NewOllamaClient crea un cliente de Ollama
+// NewOllamaClient creates an Ollama client
 func NewOllamaClient(baseURL string, model string) *OllamaClient {
 	if baseURL == "" {
 		baseURL = os.Getenv("OLLAMA_BASE_URL")
@@ -344,7 +344,7 @@ func (c *OllamaClient) Embed(ctx context.Context, text string) ([]float64, error
 }
 
 func (c *OllamaClient) EmbedBatch(ctx context.Context, texts []string) ([][]float64, error) {
-	// Ollama no soporta batch nativo, hacemos secuencial
+	// Ollama doesn't support native batch, process sequentially
 	embeddings := make([][]float64, len(texts))
 	for i, text := range texts {
 		emb, err := c.Embed(ctx, text)
@@ -360,7 +360,7 @@ func (c *OllamaClient) EmbedBatch(ctx context.Context, texts []string) ([][]floa
 // SEMANTIC ENGINE
 // ============================================
 
-// SemanticEngine combina el cliente de embeddings con el vector store
+// SemanticEngine combines the embeddings client with the vector store
 type SemanticEngine struct {
 	client     EmbeddingClient
 	store      *VectorStore
@@ -368,7 +368,7 @@ type SemanticEngine struct {
 	indexMutex sync.Mutex
 }
 
-// NewSemanticEngine crea un nuevo motor semántico
+// NewSemanticEngine creates a new semantic engine
 func NewSemanticEngine(provider Provider) (*SemanticEngine, error) {
 	var client EmbeddingClient
 
@@ -392,7 +392,7 @@ func NewSemanticEngine(provider Provider) (*SemanticEngine, error) {
 	}, nil
 }
 
-// IsAvailable verifica si el motor está disponible
+// IsAvailable checks if the engine is available
 func (e *SemanticEngine) IsAvailable() bool {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
@@ -401,18 +401,18 @@ func (e *SemanticEngine) IsAvailable() bool {
 	return err == nil
 }
 
-// IndexChunks indexa una lista de chunks
+// IndexChunks indexes a list of chunks
 func (e *SemanticEngine) IndexChunks(ctx context.Context, chunks []Chunk) error {
 	e.indexMutex.Lock()
 	defer e.indexMutex.Unlock()
 
-	// Extraer textos
+	// Extract texts
 	texts := make([]string, len(chunks))
 	for i, chunk := range chunks {
 		texts[i] = chunk.Content
 	}
 
-	// Generar embeddings en batches de 100
+	// Generate embeddings in batches of 100
 	batchSize := 100
 	for i := 0; i < len(texts); i += batchSize {
 		end := i + batchSize
@@ -436,7 +436,7 @@ func (e *SemanticEngine) IndexChunks(ctx context.Context, chunks []Chunk) error 
 	return nil
 }
 
-// Search realiza una búsqueda semántica
+// Search performs a semantic search
 func (e *SemanticEngine) Search(ctx context.Context, query string, locale string, topK int) ([]SemanticResult, error) {
 	if !e.isIndexed {
 		return nil, fmt.Errorf("index not built, call IndexChunks first")
@@ -450,12 +450,12 @@ func (e *SemanticEngine) Search(ctx context.Context, query string, locale string
 	return e.store.Search(queryEmbedding, locale, topK), nil
 }
 
-// IsIndexed retorna si el índice está construido
+// IsIndexed returns whether the index is built
 func (e *SemanticEngine) IsIndexed() bool {
 	return e.isIndexed
 }
 
-// ChunkCount retorna el número de chunks indexados
+// ChunkCount returns the number of indexed chunks
 func (e *SemanticEngine) ChunkCount() int {
 	return e.store.Count()
 }
